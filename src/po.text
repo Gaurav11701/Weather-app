@@ -1,0 +1,112 @@
+
+import React, { useState } from "react";
+
+export default function App() {
+  const [city, setCity] = useState("");
+  const [weather, setWeather] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  // 🔍 Fetch coordinates and then weather
+  const fetchWeather = async () => {
+    setLoading(true);
+    setError(null);
+    setWeather(null);
+
+    try {
+      // 1. Get city coordinates
+      const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${city}&count=1`;
+      const geoRes = await fetch(geoUrl);
+      if (!geoRes.ok) throw new Error("Failed to fetch city coordinates");
+      const geoData = await geoRes.json();
+
+      if (!geoData.results || geoData.results.length === 0) {
+        throw new Error("City not found");
+      }
+
+      const { latitude, longitude, name, country } = geoData.results[0];
+
+      // 2. Get weather using coordinates
+      const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`;
+      const weatherRes = await fetch(weatherUrl);
+      if (!weatherRes.ok) throw new Error("Failed to fetch weather data");
+      const weatherData = await weatherRes.json();
+
+      setWeather({
+        ...weatherData.current_weather,
+        location: `${name}, ${country}`,
+      });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!city.trim()) {
+      setError("Please enter a city name");
+      return;
+    }
+    fetchWeather();
+  };
+
+  return (
+    <div
+      style={{
+        maxWidth: 450,
+        margin: "2rem auto",
+        fontFamily: "Arial, sans-serif",
+        textAlign: "center",
+      }}
+    >
+      <h1>🌦 Weather App</h1>
+
+      {/* City Input */}
+      <form onSubmit={handleSubmit} style={{ marginBottom: "1rem" }}>
+        <input
+          type="text"
+          value={city}
+          onChange={(e) => setCity(e.target.value)}
+          placeholder="Enter city name"
+          style={{
+            padding: "0.5rem",
+            fontSize: "1rem",
+            width: "70%",
+            marginRight: "0.5rem",
+          }}
+        />
+        <button
+          type="submit"
+          style={{ padding: "0.5rem 1rem", fontSize: "1rem", cursor: "pointer" }}
+        >
+          Search
+        </button>
+      </form>
+
+      {/* Status */}
+      {loading && <p>Loading...</p>}
+      {error && <p style={{ color: "red" }}>{error}</p>}
+
+      {/* Weather Display */}
+      {weather && (
+        <div
+          style={{
+            marginTop: "1rem",
+            padding: "1rem",
+            background: "#eee",
+            borderRadius: "8px",
+          }}
+        >
+          <h2>{weather.location}</h2>
+          <p>🌡 Temperature: {weather.temperature}°C</p>
+          <p>💨 Wind Speed: {weather.windspeed} km/h</p>
+          <p>🧭 Wind Direction: {weather.winddirection}°</p>
+          <p>⏰ Time: {weather.time}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
